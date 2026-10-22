@@ -1,0 +1,4 @@
+﻿Bluetooth ファイル転送.LNK -> C:\Windows\System32\fsquirt.exe [exists=True]
+LocalSend.lnk -> C:\Program Files\LocalSend\localsend_app.exe [exists=True]
+ShareX.lnk -> C:\Program Files\ShareX\ShareX.exe [exists=True]
+ギガファイル便にまとめてアップロード.lnk -> C:\Users\PC_User\AppData\Local\GigaFileUploader\gfu.exe [exists=True]

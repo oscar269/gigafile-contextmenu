@@ -1,4 +1,8 @@
-﻿$ErrorActionPreference = "Stop"
+﻿param(
+    # リリースタグ。未指定なら v1.0.0
+    [string]$Tag = "v1.0.0"
+)
+$ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $here) { $here = (Get-Location).Path }
 Set-Location $here
@@ -24,9 +28,8 @@ Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
 Write-Host "[release] zip: $zip ($((Get-Item $zip).Length) bytes)"
 
 # --- 4. GitHub Release 作成 ---
-$tag = "v1.0.0"
 $notes = @"
-## gigafile-contextmenu v1.0.0
+## gigafile-contextmenu $Tag
 
 ギガファイル便 (gigafile.nu) に Windows の右クリックメニューから直接アップロードできるツール。**Python 不要** (単一 exe)。
 
@@ -42,9 +45,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 
 ### 使い方
 
-- 単一ファイル: 右クリック → 「ギガファイル便にアップロード」
-- 複数ファイル: 右クリック → 送る → 「ギガファイル便にまとめてアップロード」
-完了後、URL が自動でクリップボードにコピーされます。
+- 右クリック → 「ギガファイル便にアップロード」 (個別URL)
+- 右クリック → 「ギガファイル便にまとめてアップロード」 (zipURL)
+- 複数ファイルを1つの zip にまとめる: 右クリック → その他のオプション → 送る → 「ギガファイル便にまとめてアップロード」
+- 終了後 URL が自動でクリップボードにコピーされ、3秒後にウィンドウが閉じます
+
+### 改変履歴
+
+- ${Tag}: クリップボードに URL のみコピー / 終了時 3 秒自動クローズ / 右クリックメニュー 2 択
 
 ### 免責
 

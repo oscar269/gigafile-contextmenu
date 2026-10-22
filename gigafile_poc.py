@@ -321,7 +321,8 @@ def cmd_upload(args) -> int:
         print(f"zip名に使えない文字: {ZIP_UNSAFE}", file=sys.stderr)
         return 2
     # サイトと同じルール: 個別パスあり → zipにもパス必須
-    if args.password and len(files) >= 2 and not args.no_matomete and not args.zip_password:
+    need_zip = len(files) >= 2 or args.zip
+    if args.password and need_zip and not args.no_matomete and not args.zip_password:
         print("個別パスワード設定時は --zip-password も必要です(--no-matomete 可)", file=sys.stderr)
         return 2
 
@@ -339,9 +340,10 @@ def cmd_upload(args) -> int:
         results.append({"url": j["url"], "delkey": j["delkey"], "file": os.path.basename(path)})
 
     zip_result = None
-    if len(results) >= 2 and not args.no_matomete:
+    if need_zip and not args.no_matomete:
         zfile = args.zip_name or ""
-        print(f"[まとめてダウンロード] {len(results)}ファイル, zip名'{zfile or '(自動)'}'")
+        label = f"{len(results)}ファイル" if len(results) >= 2 else "1ファイル"
+        print(f"[まとめてダウンロード] {label}, zip名'{zfile or '(自動)'}'")
         zip_result = matomete_get_url(
             session, server,
             [r["url"] for r in results],
@@ -349,26 +351,23 @@ def cmd_upload(args) -> int:
             zfile, args.zip_password or "", args.lifetime,
         )
 
-    print("\n=== 結果 ===")
-    lines = []
-    for i, r in enumerate(results, 1):
-        line = f"{i}. {r['url']}  (delkey: {r['delkey']}, {r['file']})"
-        print(line)
-        lines.append(line)
+    # クリップボードには共有用URLのみ。zip があれば zip の URL を1つだけ
+    clip_urls = [r["url"] for r in results]
     if zip_result:
-        zline = f"zip: {zip_result['url']}  (zip名: {zip_result['file_name']}, delkey: {zip_result['delkey']})"
-        print(zline)
-        lines.append(zline)
+        clip_urls = [zip_result["url"]]
+
+    print("\n=== 結果 ===")
+    for i, r in enumerate(results, 1):
+        print(f"{i}. {r['url']}  (delkey: {r['delkey']}, {r['file']})")
+    if zip_result:
+        print(f"zip: {zip_result['url']}  (zip名: {zip_result['file_name']}, delkey: {zip_result['delkey']})")
 
     if clip:
-        if copy_to_clipboard("\n".join(lines)):
-            print("→ クリップボードにコピーしました")
+        if copy_to_clipboard("\n".join(clip_urls)):
+            print("→ クリップボードにURLをコピーしました")
     if hold:
-        print("完了。Enterキーで終了します…")
-        try:
-            input()
-        except (EOFError, OSError):
-            pass
+        print("完了。3秒後に自動的に閉じます…")
+        time.sleep(3)
     return 0
 
 
@@ -428,6 +427,7 @@ def main() -> int:
     up.add_argument("--zip-password", default="", help="zipのDLパスワード(半角英数0-4)")
     up.add_argument("--zip-name", default="", help="まとめzipの表示名(使用不可: %s)" % ZIP_UNSAFE)
     up.add_argument("--no-matomete", action="store_true", help="まとめURLを発行しない")
+    up.add_argument("--zip", action="store_true", help="1ファイルでもzip(まとめURL)で発行する")
     up.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK, help="チャンクMB(既定100, テスト用に小さく可)")
     up.add_argument("--clip", action=argparse.BooleanOptionalAction, default=None,
                     help="結果URLをクリップボードへコピー(省略時: メニュー実行=ON, CLI=OFF)")
@@ -461,7 +461,8 @@ if __name__ == "__main__":
         print(f"\nエラー: {exc}", file=sys.stderr)
         if menu_mode:
             try:
-                input("問題が発生しました。Enterキーで終了します…")
-            except (EOFError, OSError):
+                print("問題が発生しました。5秒後に終了します…", file=sys.stderr)
+                time.sleep(5)
+            except KeyboardInterrupt:
                 pass
         sys.exit(1)

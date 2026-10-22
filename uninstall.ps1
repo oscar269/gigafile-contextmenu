@@ -2,8 +2,9 @@
 
 $label2 = "ギガファイル便にまとめてアップロード"
 
-# 右クリックメニュー解除
+# 右クリックメニュー解除 (2択)
 reg delete 'HKCU\Software\Classes\*\shell\GigaFileUpload' /f | Out-Null
+reg delete 'HKCU\Software\Classes\*\shell\GigaFileUploadZip' /f | Out-Null
 if ($LASTEXITCODE -eq 0) { Write-Host "[uninstall] context menu: removed" }
 
 # SendTo ショートカット削除

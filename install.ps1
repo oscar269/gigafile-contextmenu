@@ -10,6 +10,7 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $here) { $here = (Get-Location).Path }
 $dest = Join-Path $env:LOCALAPPDATA "GigaFileUploader"
 $label1 = "ギガファイル便にアップロード(&U)"
+$labelZ = "ギガファイル便にまとめてアップロード(&Z)"
 $label2 = "ギガファイル便にまとめてアップロード"
 
 if (-not $ExePath) {
@@ -26,17 +27,24 @@ if (-not $ExePath) {
 Write-Host "[install] binary: $ExePath"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
-# --- 本体コピー (旧 py 版残骸があれば掃除) ---
+# --- 本体コピー (旧 py 版残骸があれば掃除。実行中プロセスも停止) ---
 Remove-Item (Join-Path $dest "gfu.cmd"), (Join-Path $dest "gigafile_poc.py") -Force -ErrorAction SilentlyContinue
+Stop-Process -Name gfu -Force -ErrorAction SilentlyContinue
+Start-Sleep 1
 Copy-Item -Force $ExePath (Join-Path $dest "gfu.exe")
 
-# --- レジストリ: 全ファイルの右クリックメニュー (HKCU, 管理者不要) ---
+# --- レジストリ: 右クリックメニュー2択 (HKCU, 管理者不要) ---
 # * はワイルドカード扱いされないよう reg.exe で登録する
-$verbKey = 'HKCU\Software\Classes\*\shell\GigaFileUpload'
+$exeInstalled = Join-Path $dest "gfu.exe"
+$verbKey  = 'HKCU\Software\Classes\*\shell\GigaFileUpload'
+$verbKeyZ = 'HKCU\Software\Classes\*\shell\GigaFileUploadZip'
 reg add $verbKey /ve /t REG_SZ /d $label1 /f | Out-Null
-$cmdLine = '"'+(Join-Path $dest "gfu.exe")+'" "%1"'
-reg add "$verbKey\command" /ve /t REG_SZ /d $cmdLine /f | Out-Null
-Write-Host "[install] context menu: registered ($cmdLine)"
+reg add "$verbKey\command" /ve /t REG_SZ /d ('"'+$exeInstalled+'" "%1"') /f | Out-Null
+reg add $verbKeyZ /ve /t REG_SZ /d $labelZ /f | Out-Null
+reg add "$verbKeyZ\command" /ve /t REG_SZ /d ('"'+$exeInstalled+'" "%1" --zip') /f | Out-Null
+Write-Host "[install] context menu: registered"
+Write-Host "  $label1 -> $exeInstalled"
+Write-Host "  $labelZ -> $exeInstalled --zip"
 
 # --- SendTo: 複数選択 → まとめてアップロード ---
 $ws = New-Object -ComObject WScript.Shell
