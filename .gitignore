@@ -1,0 +1,10 @@
+# test fixtures
+test/
+
+# python
+__pycache__/
+*.pyc
+
+# verify outputs
+verify*.txt
+_probe*.py
