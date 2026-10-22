@@ -10,8 +10,7 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $here) { $here = (Get-Location).Path }
 $dest = Join-Path $env:LOCALAPPDATA "GigaFileUploader"
 $label1 = "ギガファイル便にアップロード(&U)"
-$labelZ = "ギガファイル便にまとめてアップロード(&Z)"
-$label2 = "ギガファイル便にまとめてアップロード"
+$label2 = "ギガファイル便にまとめてアップロード"   # 旧版 SendTo 清掃用
 
 if (-not $ExePath) {
     $cand1 = Join-Path $here "dist\gfu.exe"
@@ -33,27 +32,20 @@ Stop-Process -Name gfu -Force -ErrorAction SilentlyContinue
 Start-Sleep 1
 Copy-Item -Force $ExePath (Join-Path $dest "gfu.exe")
 
-# --- レジストリ: 右クリックメニュー2択 (HKCU, 管理者不要) ---
+# --- レジストリ: 右クリックメニュー (HKCU, 管理者不要。1種のみ) ---
 # * はワイルドカード扱いされないよう reg.exe で登録する
+# 旧版に作った2択・SendTo が残っていれば清掃する
 $exeInstalled = Join-Path $dest "gfu.exe"
-$verbKey  = 'HKCU\Software\Classes\*\shell\GigaFileUpload'
-$verbKeyZ = 'HKCU\Software\Classes\*\shell\GigaFileUploadZip'
-reg add $verbKey /ve /t REG_SZ /d $label1 /f | Out-Null
-reg add "$verbKey\command" /ve /t REG_SZ /d ('"'+$exeInstalled+'" "%1"') /f | Out-Null
-reg add $verbKeyZ /ve /t REG_SZ /d $labelZ /f | Out-Null
-reg add "$verbKeyZ\command" /ve /t REG_SZ /d ('"'+$exeInstalled+'" "%1" --zip') /f | Out-Null
+# 旧2択版の残骸清掃 (cmd 経由で stderr も完全に握りつぶす)
+cmd /c 'reg delete "HKCU\Software\Classes\*\shell\GigaFileUploadZip" /f >nul 2>&1'
+reg add 'HKCU\Software\Classes\*\shell\GigaFileUpload' /ve /t REG_SZ /d $label1 /f | Out-Null
+reg add 'HKCU\Software\Classes\*\shell\GigaFileUpload\command' /ve /t REG_SZ /d ('"'+$exeInstalled+'" "%1"') /f | Out-Null
 Write-Host "[install] context menu: registered"
 Write-Host "  $label1 -> $exeInstalled"
-Write-Host "  $labelZ -> $exeInstalled --zip"
 
-# --- SendTo: 複数選択 → まとめてアップロード ---
-$ws = New-Object -ComObject WScript.Shell
-$sendTo = [Environment]::GetFolderPath("SendTo")
-$lnkPath = Join-Path $sendTo ($label2 + ".lnk")
-$lnk = $ws.CreateShortcut($lnkPath)
-$lnk.TargetPath = (Join-Path $dest "gfu.exe")
-$lnk.Description = "Upload selected files to gigafile.nu and get zip URL"
-$lnk.Save()
-Write-Host "[install] SendTo shortcut: $lnkPath"
+# 旧 SendTo ショートカット清掃
+$sendTo = Join-Path $env:APPDATA "Microsoft\Windows\SendTo"
+$oldLnk = Join-Path $sendTo ($label2 + ".lnk")
+if (Test-Path $oldLnk) { Remove-Item $oldLnk -Force; Write-Host "[install] legacy SendTo shortcut: removed" }
 
 Write-Host "[install] done."
