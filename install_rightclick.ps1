@@ -8,29 +8,20 @@ $label2 = "ギガファイル便にまとめてアップロード"
 Write-Host "[install] destination: $dest"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
-# --- python.exe 探索 ---
-$py = (Get-Command python.exe -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if (-not $py) { throw "python.exe not found in PATH" }
-Write-Host "[install] python: $py"
+# --- exe 探索 (PyInstaller でビルド済みであること) ---
+$exe = Join-Path $here "dist\gfu.exe"
+if (-not (Test-Path $exe)) { throw "dist\gfu.exe が見つかりません。先に PyInstaller でビルドしてください" }
+Write-Host "[install] binary: $exe"
 
-# --- 本体コピー ---
-Copy-Item -Force (Join-Path $here "gigafile_poc.py") (Join-Path $dest "gigafile_poc.py")
-
-# --- ランチャ gfu.cmd (ASCII のみ。パスはインストール時に実パスへ) ---
-$pyPath    = Join-Path $dest "gigafile_poc.py"
-$gfuPath   = Join-Path $dest "gfu.cmd"
-$gfuContent = "@echo off`r`n" +
-              "rem == GigaFile Uploader launcher ==`r`n" +
-              '"'+$py+'" "'+$pyPath+'" upload --clip %*' + "`r`n" +
-              "echo.`r`n" +
-              "pause`r`n"
-[System.IO.File]::WriteAllText($gfuPath, $gfuContent, [System.Text.Encoding]::ASCII)
+# --- 本体コピー (旧 py 版があれば掃除) ---
+Remove-Item (Join-Path $dest "gfu.cmd"), (Join-Path $dest "gigafile_poc.py") -Force -ErrorAction SilentlyContinue
+Copy-Item -Force $exe (Join-Path $dest "gfu.exe")
 
 # --- レジストリ: 全ファイルの右クリックメニュー (HKCU, 管理者不要) ---
 # * はワイルドカード扱いされないよう reg.exe で登録する
 $verbKey = 'HKCU\Software\Classes\*\shell\GigaFileUpload'
 reg add $verbKey /ve /t REG_SZ /d $label1 /f | Out-Null
-$cmdLine = '"'+$gfuPath+'" "%1"'
+$cmdLine = '"'+(Join-Path $dest "gfu.exe")+'" "%1"'
 reg add "$verbKey\command" /ve /t REG_SZ /d $cmdLine /f | Out-Null
 Write-Host "[install] context menu: registered ($cmdLine)"
 
@@ -39,7 +30,7 @@ $ws = New-Object -ComObject WScript.Shell
 $sendTo = [Environment]::GetFolderPath("SendTo")
 $lnkPath = Join-Path $sendTo ($label2 + ".lnk")
 $lnk = $ws.CreateShortcut($lnkPath)
-$lnk.TargetPath = $gfuPath
+$lnk.TargetPath = (Join-Path $dest "gfu.exe")
 $lnk.Description = "Upload selected files to gigafile.nu and get zip URL"
 $lnk.Save()
 Write-Host "[install] SendTo shortcut: $lnkPath"

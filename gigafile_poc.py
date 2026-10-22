@@ -303,6 +303,9 @@ def key_from_url(url: str) -> str:
 
 # ---------------------------------------------------------------- commands
 def cmd_upload(args) -> int:
+    menu_mode = getattr(args, "menu_mode", False)
+    clip = menu_mode if args.clip is None else args.clip
+    hold = menu_mode if args.hold is None else args.hold
     files = [os.path.abspath(p) for p in args.files]
     for p in files:
         if not os.path.isfile(p):
@@ -357,9 +360,15 @@ def cmd_upload(args) -> int:
         print(zline)
         lines.append(zline)
 
-    if args.clip:
+    if clip:
         if copy_to_clipboard("\n".join(lines)):
             print("→ クリップボードにコピーしました")
+    if hold:
+        print("完了。Enterキーで終了します…")
+        try:
+            input()
+        except (EOFError, OSError):
+            pass
     return 0
 
 
@@ -394,6 +403,11 @@ def cmd_delete(args) -> int:
 def main() -> int:
     force_utf8_console()
     argv = sys.argv[1:]
+    # ターゲット: exe/右クリックから「upload」を付けずにファイルを渡された場合
+    menu_mode = bool(argv) and argv[0] not in ("upload", "delete") and \
+        argv[0] not in ("-h", "--help") and not argv[0].startswith("-")
+    if menu_mode:
+        argv = ["upload"] + argv
     if argv and argv[0] == "delete":
         argv = argv[1:]
         ap = argparse.ArgumentParser(prog="gigafile delete")
@@ -415,8 +429,14 @@ def main() -> int:
     up.add_argument("--zip-name", default="", help="まとめzipの表示名(使用不可: %s)" % ZIP_UNSAFE)
     up.add_argument("--no-matomete", action="store_true", help="まとめURLを発行しない")
     up.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK, help="チャンクMB(既定100, テスト用に小さく可)")
-    up.add_argument("--clip", action="store_true", help="結果URLをクリップボードへコピー")
+    up.add_argument("--clip", action=argparse.BooleanOptionalAction, default=None,
+                    help="結果URLをクリップボードへコピー(省略時: メニュー実行=ON, CLI=OFF)")
+    up.add_argument("--hold", action=argparse.BooleanOptionalAction, default=None,
+                    help="終了時Enter待ち(省略時: メニュー実行=ON, CLI=OFF)")
     args = ap.parse_args(argv)
+    if menu_mode:
+        args.menu_mode = True
+        args.hold = True if args.hold is None else args.hold
     if not args.cmd:
         ap.print_help()
         return 2
@@ -429,4 +449,19 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\n中断しました")
+        sys.exit(130)
+    except Exception as exc:
+        force_utf8_console()
+        argv = sys.argv[1:]
+        menu_mode = bool(argv) and argv[0] not in ("upload", "delete", "-h", "--help")
+        print(f"\nエラー: {exc}", file=sys.stderr)
+        if menu_mode:
+            try:
+                input("問題が発生しました。Enterキーで終了します…")
+            except (EOFError, OSError):
+                pass
+        sys.exit(1)

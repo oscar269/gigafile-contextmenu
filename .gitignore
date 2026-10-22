@@ -5,6 +5,11 @@ test/
 __pycache__/
 *.pyc
 
+# pyinstaller
+build/
+dist/
+*.spec
+
 # verify outputs
 verify*.txt
 _probe*.py
