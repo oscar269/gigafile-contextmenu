@@ -14,25 +14,32 @@ Web UI が裏で利用している内部 API (`/upload_chunk.php` など) を直
 - URL 自動クリップボードコピー / 完了待ち (メニュー実行時)
 - アップロード済み URL の削除 (`delete`)
 
-## インストール
+## インストール (Python 不要)
 
-ビルド済み `dist/gfu.exe` がある状態で:
+**方法A: zip**
+GitHub Releases から `gigafile-contextmenu.zip` をダウンロード → 展開 → `install.bat` をダブルクリック
+
+**方法B: 一行コピペ** (PowerShell に貼り付け)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install_rightclick.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/oscar269/gigafile-contextmenu/main/remote_install.ps1 | iex"
 ```
+
+どちらも:
 
 - `%LOCALAPPDATA%\GigaFileUploader\` に `gfu.exe` を配置
 - `HKCU` に「ギガファイル便にアップロード(&U)」コンテキストメニュー登録 (管理者不要)
 - SendTo に「ギガファイル便にまとめてアップロード」ショートカット登録
-- **Python 実行環境は不要** (単一exe)
 
-### ビルド方法 (開発者用)
+### 開発者用ビルド
 
 ```bash
 pip install pyinstaller requests
 python -m PyInstaller --onefile --console --name gfu gigafile_poc.py
+powershell -ExecutionPolicy Bypass -File install.ps1   # dist\gfu.exe を検出して登録
 ```
+
+リリースの作成: `build_release.ps1` (ビルド → zip → GitHub Release 添付まで自動)
 
 ## 使い方
 
@@ -63,13 +70,11 @@ gfu.exe delete <URL> <delkey>
 
 ## 更新
 
-ソース変更後、PyInstaller で再ビルド → `install_rightclick.ps1` を再実行すれば `%LOCALAPPDATA%` に上書きされる。
+PyInstaller で再ビルド → `install.ps1` 再実行で `%LOCALAPPDATA%` に上書き。
 
 ## アンインストール
 
-```powershell
-powershell -ExecutionPolicy Bypass -File uninstall_rightclick.ps1
-```
+zip に入っている `uninstall.bat`（またはリポジトリの `uninstall.ps1`）を実行。
 
 ## 免責事項
 

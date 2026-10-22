@@ -10,6 +10,11 @@ build/
 dist/
 *.spec
 
+# release artifacts
+release_stage/
+gigafile-contextmenu.zip
+release_notes.md
+
 # verify outputs
 verify*.txt
 _probe*.py
